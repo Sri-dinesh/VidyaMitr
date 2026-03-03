@@ -20,23 +20,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import os
+
 model = None
 label_encoder = None
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 try:
     print("Loading trained ML model...")
     try:
-        model = joblib.load('recommendation_engine_extreme.pkl')
-        label_encoder = joblib.load('label_encoder.pkl')
+        model_path = os.path.join(BASE_DIR, 'recommendation_engine_extreme.pkl')
+        encoder_path = os.path.join(BASE_DIR, 'label_encoder.pkl')
+        model = joblib.load(model_path)
+        label_encoder = joblib.load(encoder_path)
         print("✓ Advanced XGBoost model loaded successfully!")
     except FileNotFoundError:
-        model = joblib.load('recommendation_engine.pkl')
+        fallback_path = os.path.join(BASE_DIR, 'recommendation_engine.pkl')
+        model = joblib.load(fallback_path)
         label_encoder = None
         print("✓ Random Forest model loaded successfully!")
     print(f"✓ Model classes: {model.classes_ if hasattr(model, 'classes_') else 'N/A'}")
 except Exception as e:
     print(f"✗ ERROR: Failed to load model - {str(e)}")
-    print("✗ Make sure 'recommendation_engine.pkl' or 'recommendation_engine_extreme.pkl' exists")
+    print("✗ Make sure 'recommendation_engine.pkl' or 'recommendation_engine_extreme.pkl' exists in the same directory as main.py")
     raise
 
 # PYDANTIC DATA MODELS

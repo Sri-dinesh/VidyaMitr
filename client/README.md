@@ -1,121 +1,265 @@
-# VidyaMitra - AI-Powered Personalized Learning Platform
+# VidyaMitr Client - Next.js Frontend
 
-An AI-driven web-based platform that analyzes student profiles, assesses learning needs, and provides customized recommendations for courses and resources tailored for high school students (Class 6 to Class 10).
+> Modern, responsive frontend for the VidyaMitr adaptive learning platform
 
-## Tech Stack
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui (to be added in Phase 2)
-- **Database & Auth**: Supabase (PostgreSQL + Row Level Security)
-- **State Management**: Zustand (to be added in Phase 2)
-- **Validation**: Zod
-- **Forms**: react-hook-form
-- **Icons**: lucide-react
-- **Package Manager**: pnpm
 
-## Project Status
+## Overview
 
-### ✅ Phase 1: Project Initialization, Architecture & Supabase Auth Setup (COMPLETED)
+The VidyaMitr client is a Next.js 16 application that provides an intuitive, AI-powered learning experience for students. Built with TypeScript, Tailwind CSS, and shadcn/ui components.
 
-**Completed Tasks:**
 
-1. **Next.js & Dependency Initialization**
-   - ✅ Initialized Next.js 16 with TypeScript, Tailwind CSS, and ESLint
-   - ✅ Installed all required dependencies
-   - ✅ Set up absolute imports (`@/*`) mapping
 
-2. **Supabase Database Schema & RLS**
-   - ✅ Created `users` table with proper columns and constraints
-   - ✅ Created `resources` table with proper columns and constraints
-   - ✅ Created `session_logs` table with proper columns and constraints
-   - ✅ Enabled Row Level Security (RLS) on all tables
-   - ✅ Implemented RLS policies for secure data access
-   - ✅ Created database indexes for optimized queries
+## Quick Start
 
-3. **Authentication Implementation**
-   - ✅ Created Supabase client utilities (`utils/supabase/server.ts` and `client.ts`)
-   - ✅ Built Next.js Middleware for route protection
-   - ✅ Created Server Actions for `signUpWithEmail` and `signInWithEmail`
-   - ✅ Implemented automatic user profile creation on signup
-   - ✅ Built `/login` and `/signup` pages with clean UI
-   - ✅ Protected routes: `/dashboard`, `/path`, `/resource`, `/admin`, `/onboarding`
+### Installation
 
-**Database Schema:**
-
-- **users**: Stores user profiles with grade level, format preferences, and avatar selection
-- **resources**: Contains learning resources with subject, difficulty, format, and tags
-- **session_logs**: Tracks user interactions, feedback, and progress for analytics
-
-**Environment Setup:**
-
-Create a `.env.local` file with your Supabase credentials:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-## Getting Started
-
-1. Install dependencies:
 ```bash
+# Install dependencies
 pnpm install
-```
 
-2. Set up environment variables (see `.env.example`)
+# Set up environment variables
+cp .env.example .env
+# Add your API keys to .env
 
-3. Run the development server:
-```bash
+# Run development server
 pnpm dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000)
+
+### Build for Production
+
+```bash
+pnpm run build
+pnpm start
+```
+
+
 
 ## Project Structure
 
 ```
-├── app/
-│   ├── actions/
-│   │   └── auth.ts          # Server actions for authentication
-│   ├── dashboard/           # Protected dashboard route
-│   ├── login/               # Login page
-│   ├── signup/              # Signup page
-│   ├── onboarding/          # Onboarding flow (Phase 3)
-│   ├── globals.css          # Global styles
-│   ├── layout.tsx           # Root layout
-│   └── page.tsx             # Home page
-├── types/
-│   └── database.types.ts    # TypeScript types for database schema
-├── utils/
-│   └── supabase/
-│       ├── client.ts        # Supabase client for browser
-│       └── server.ts        # Supabase client for server
-├── middleware.ts            # Route protection middleware
-└── [config files]
+client/
+├── app/                    # Next.js App Router
+│   ├── actions/           # Server Actions (API logic)
+│   │   ├── admin.ts       # Admin operations
+│   │   ├── auth.ts        # Authentication
+│   │   ├── gemini.ts      # AI/LLM operations
+│   │   ├── progress.ts    # Progress tracking
+│   │   ├── resource.ts    # Resource management
+│   │   └── user.ts        # User operations
+│   │
+│   ├── api/               # API Routes
+│   │   ├── diagnose/      # Diagnostic quiz API
+│   │   └── gemini/        # Gemini AI endpoints
+│   │
+│   ├── (pages)/           # Application pages
+│   │   ├── admin/         # Admin dashboard
+│   │   ├── certificates/  # Certificates page
+│   │   ├── dashboard/     # Student dashboard
+│   │   ├── diagnostic/    # Diagnostic quiz
+│   │   ├── login/         # Login page
+│   │   ├── onboarding/    # Onboarding flow
+│   │   ├── path/          # Learning path
+│   │   ├── resource/      # Resource viewer
+│   │   ├── settings/      # User settings
+│   │   ├── signup/        # Signup page
+│   │   └── study-hub/     # AI Study Hub
+│   │
+│   ├── globals.css        # Global styles
+│   └── layout.tsx         # Root layout
+│
+├── components/            # React Components
+│   ├── ui/               # shadcn/ui components
+│   ├── AIQuizModule.tsx  # AI quiz system
+│   ├── AvatarCompanion.tsx # Avatar companion
+│   ├── Certificate.tsx   # Certificate generator
+│   ├── DiagnosticQuiz.tsx # Diagnostic quiz
+│   ├── FamilyCompanion.tsx # Family dashboard
+│   ├── LMSIntegrationPanel.tsx # LMS integration
+│   ├── ResourceChatbot.tsx # AI chatbot
+│   ├── SubjectGrid.tsx   # Subject selection
+│   └── VideoPlayer.tsx   # Video player
+│
+├── lib/                   # Utilities
+│   ├── constants/        # Constants and configs
+│   ├── utils/            # Helper functions
+│   └── validations/      # Zod schemas
+│
+├── store/                 # State Management
+│   └── useAppStore.ts    # Zustand store
+│
+├── types/                 # TypeScript Types
+│   └── database.types.ts # Database types
+│
+├── utils/                 # Utilities
+│   └── supabase/         # Supabase clients
+│       ├── admin.ts      # Admin client (service role)
+│       ├── client.ts     # Browser client
+│       └── server.ts     # Server client
+│
+├── scripts/               # Setup scripts
+│   ├── create-progress-tables.sql
+│   ├── seed-demo-resources.sql
+│   └── SETUP_PROGRESS_TRACKING.md
+│
+└── middleware.ts          # Route protection
 ```
 
-## Next Steps
 
-### Phase 2: Global State (Zustand) & Core UI Component Library
-- Set up Zustand store for user and intent state
-- Initialize shadcn/ui and create base components
-- Build the AvatarCompanion component
 
-### Phase 3: Frictionless Onboarding Flow
-- Build profile setup forms with Zod validation
-- Create avatar selection UI
-- Implement onboarding completion flow
+## Key Features
 
-### Phase 4-7: Dashboard, Recommendation Engine, Learning Resources, Admin Portal
-- See `PLAN.md` for detailed phase breakdown
+### Pages
 
-## Documentation
+1. **Authentication**
+   - `/login` - User login
+   - `/signup` - User registration
+   - Protected routes with middleware
 
-- [PLAN.md](./PLAN.md) - Detailed phase-by-phase implementation guide
-- [PRD.txt](./PRD.txt) - Product Requirements Document
+2. **Onboarding**
+   - `/onboarding` - Profile setup
+   - Grade level, subject, and avatar selection
 
-## License
+3. **Dashboard**
+   - `/dashboard` - Main student dashboard
+   - Subject selection and progress overview
 
-ISC
+4. **Learning**
+   - `/path` - Adaptive learning path with 4-week roadmap
+   - `/resource/[id]` - Resource viewer with AI chatbot
+   - `/diagnostic` - Diagnostic quiz for assessment
+
+5. **Study Hub**
+   - `/study-hub` - AI-powered study assistance
+   - Doubt resolution and study guides
+
+6. **Progress**
+   - `/certificates` - View earned certificates
+   - `/settings` - User settings and preferences
+
+7. **Admin**
+   - `/admin` - Admin dashboard
+   - User management and LMS integration
+
+### Components
+
+- **AIQuizModule**: Auto-generated quizzes with Gemini AI
+- **AvatarCompanion**: Interactive avatar system
+- **DiagnosticQuiz**: Initial assessment quiz
+- **ResourceChatbot**: AI chatbot for resource help
+- **FamilyCompanion**: Parent dashboard view
+- **LMSIntegrationPanel**: LMS integration UI
+
+### Server Actions
+
+All API logic is in `app/actions/`:
+- `auth.ts` - Login, signup, session management
+- `gemini.ts` - AI operations (roadmap, quiz generation)
+- `progress.ts` - Progress tracking and certificates
+- `resource.ts` - Resource operations and feedback
+- `user.ts` - User profile management
+- `admin.ts` - Admin operations
+
+
+
+## Environment Variables
+
+Required variables in `.env`:
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Gemini AI
+GEMINI_API_KEY=your_gemini_key
+
+# Optional
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **State Management**: Zustand
+- **Forms**: react-hook-form + Zod
+- **Database**: Supabase (PostgreSQL)
+- **AI**: Google Gemini 1.5 Flash
+- **Icons**: lucide-react
+
+
+
+## Scripts
+
+```bash
+# Development
+pnpm dev              # Start dev server
+pnpm dev:turbo        # Start with Turbopack
+
+# Build
+pnpm build            # Production build
+pnpm start            # Start production server
+
+# Linting
+pnpm lint             # Run ESLint
+
+# Type Checking
+pnpm type-check       # Run TypeScript compiler
+```
+
+## Security
+
+### Authentication
+- Supabase Auth with email/password
+- Protected routes via middleware
+- Session management with cookies
+
+### Row-Level Security (RLS)
+- Database-level security policies
+- User-specific data access
+- Admin client for server operations
+
+### Best Practices
+- Environment variables for secrets
+- Server actions for sensitive operations
+- Input validation with Zod
+- Type safety with TypeScript
+
+
+
+## Database Schema
+
+### Core Tables
+
+1. **users** - User profiles
+   - id, name, grade_level, preferred_format
+   - avatar_selection, is_admin
+
+2. **resources** - Learning resources
+   - id, title, subject, difficulty
+   - format, url, tags
+
+3. **session_logs** - Activity tracking
+   - id, user_id, action_type
+   - resource_id, details
+
+4. **user_progress** - Progress tracking
+   - id, user_id, resource_id
+   - completed, completion_date
+
+5. **user_learning_paths** - Learning paths
+   - id, user_id, subject
+   - resource_ids, goal
+
+6. **certificates** - Certificates
+   - id, user_id, subject
+   - resources_completed, certificate_data
+

@@ -195,11 +195,11 @@ export default function DiagnosticPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-lg text-gray-700 leading-relaxed">
-                    {pathData.introduction}
+                    {pathData?.introduction || 'Loading...'}
                   </p>
                   <div className="p-4 bg-white rounded-lg border border-green-200">
                     <p className="text-sm font-medium text-gray-900 mb-1">Current Level Assessment:</p>
-                    <p className="text-gray-700">{pathData.currentLevel}</p>
+                    <p className="text-gray-700">{pathData?.currentLevel || 'Assessing...'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -216,12 +216,12 @@ export default function DiagnosticPage() {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {pathData.strengthAreas.map((strength, idx) => (
+                      {pathData?.strengthAreas?.map((strength, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                           <span className="text-gray-700">{strength}</span>
                         </li>
-                      ))}
+                      )) || <li className="text-gray-500">No data available</li>}
                     </ul>
                   </CardContent>
                 </Card>
@@ -236,7 +236,7 @@ export default function DiagnosticPage() {
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {pathData.improvementAreas.map((area, idx) => (
+                      {pathData?.improvementAreas?.map((area, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <TrendingUp className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
                           <span className="text-gray-700">{area}</span>
@@ -257,14 +257,14 @@ export default function DiagnosticPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-3">
-                    {pathData.learningObjectives.map((objective, idx) => (
+                    {pathData?.learningObjectives?.map((objective, idx) => (
                       <li key={idx} className="flex items-start gap-3">
                         <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-sm font-bold text-indigo-600">{idx + 1}</span>
                         </div>
                         <span className="text-gray-700 flex-1">{objective}</span>
                       </li>
-                    ))}
+                    )) || <li className="text-gray-500">No objectives available</li>}
                   </ul>
                 </CardContent>
               </Card>
@@ -282,7 +282,7 @@ export default function DiagnosticPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    {pathData.detailedRoadmap.map((phase, idx) => (
+                    {pathData?.detailedRoadmap?.map((phase, idx) => (
                       <div
                         key={idx}
                         className="relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200"
@@ -300,7 +300,7 @@ export default function DiagnosticPage() {
                               {phase.week}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">Focus: {phase.topics[0]}</p>
+                          <p className="text-sm text-gray-600">Focus: {phase.topics?.[0] || 'Various topics'}</p>
                         </div>
 
                         {/* Topics */}

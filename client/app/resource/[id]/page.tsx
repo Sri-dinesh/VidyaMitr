@@ -103,6 +103,19 @@ export default function ResourcePage({ params }: ResourcePageProps) {
       if (result.success) {
         setNextResource(result.nextResource || null);
         setShowProgressionDialog(true);
+        
+        // Show appropriate toast based on completion status
+        if (!result.nextResource) {
+          toast.success('🎉 All resources completed!', {
+            description: 'Check your certificates page for your achievement.',
+            duration: 5000,
+          });
+        } else {
+          toast.success('Module completed!', {
+            description: 'Great job! Your next resource is ready.',
+            duration: 3000,
+          });
+        }
       } else {
         toast.error(result.error || 'Failed to mark as complete');
       }

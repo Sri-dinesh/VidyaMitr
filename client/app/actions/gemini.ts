@@ -36,7 +36,7 @@ export async function generatePathRoadmap(
 ): Promise<PathRoadmap> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash-lite',
       generationConfig: {
         responseMimeType: 'application/json',
       },
@@ -222,7 +222,7 @@ export async function generateQuiz(
 ): Promise<QuizResult> {
   try {
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash-lite',
       generationConfig: {
         responseMimeType: 'application/json',
       },

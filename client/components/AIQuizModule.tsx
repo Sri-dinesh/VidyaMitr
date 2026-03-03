@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateQuiz } from '@/app/actions/gemini';
+import { saveQuizResults } from '@/app/actions/progress';
 import { toast } from 'sonner';
-import { createClient } from '@/utils/supabase/client';
 import { Brain, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 interface QuizQuestion {
@@ -79,25 +79,19 @@ export default function AIQuizModule({ subject, topic, resourceId, userId }: AIQ
     setScore(correctCount);
     setShowResults(true);
 
-    // Save to database (session_logs table)
+    // Save to database using server action
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('session_logs').insert({
-        user_id: userId,
-        resource_id: resourceId || null,
-        action_type: 'completed_module',
-        details: {
-          event_type: 'quiz_completed',
-          score: correctCount,
-          total: questions.length,
-          subject,
-          topic,
-          timestamp: new Date().toISOString(),
-        },
+      const result = await saveQuizResults({
+        userId,
+        resourceId,
+        subject,
+        topic,
+        score: correctCount,
+        total: questions.length,
       });
 
-      if (error) {
-        console.error('Error saving quiz results:', error);
+      if (!result.success) {
+        console.error('Error saving quiz results:', result.error);
       }
 
       // ESCALATION LOGIC: Trigger for scores 0/3 or 1/3

@@ -68,9 +68,13 @@ export async function handleFeedback(
 ): Promise<FeedbackResult> {
   try {
     const supabase = await createClient();
+    
+    // Use admin client for RLS bypass
+    const { createAdminClient } = await import('@/utils/supabase/admin');
+    const adminClient = createAdminClient();
 
-    // Log the feedback in session_logs
-    const { error: logError } = await supabase.from('session_logs').insert({
+    // Log the feedback in session_logs using admin client
+    const { error: logError } = await adminClient.from('session_logs').insert({
       user_id: userId,
       action_type: 'resource_feedback',
       resource_id: resourceId,
@@ -143,13 +147,37 @@ export async function handleProgression(
 ): Promise<ProgressionResult> {
   try {
     const supabase = await createClient();
+    
+    // Use admin client for RLS bypass
+    const { createAdminClient } = await import('@/utils/supabase/admin');
+    const adminClient = createAdminClient();
 
-    // Log the completion in session_logs
-    const { error: logError } = await supabase.from('session_logs').insert({
+    // Mark resource as complete in user_progress table using admin client
+    const { error: progressError } = await adminClient
+      .from('user_progress')
+      .upsert(
+        {
+          user_id: userId,
+          resource_id: currentResourceId,
+          completed: true,
+          completion_date: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id,resource_id',
+        }
+      );
+
+    if (progressError) {
+      console.error('Error updating user_progress:', progressError);
+    }
+
+    // Log the completion in session_logs using admin client
+    const { error: logError } = await adminClient.from('session_logs').insert({
       user_id: userId,
       action_type: 'completed_module',
       resource_id: currentResourceId,
-      details: { completion_percentage: 80 },
+      details: { completion_percentage: 100 },
     });
 
     if (logError) {
@@ -169,6 +197,60 @@ export async function handleProgression(
         error: 'Current resource not found',
       };
     }
+
+    // Count completed resources for THIS SUBJECT only
+    const { data: completedProgress } = await adminClient
+      .from('user_progress')
+      .select('resource_id, resources!inner(subject)')
+      .eq('user_id', userId)
+      .eq('completed', true)
+      .eq('resources.subject', currentResource.subject);
+
+    const completedCount = completedProgress?.length || 0;
+    console.log(`✅ User has completed ${completedCount} resources in ${currentResource.subject}`);
+
+    // Check if user has a learning path for this subject
+    const { data: paths } = await supabase
+      .from('user_learning_paths')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('subject', currentResource.subject)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    let allResourcesCompleted = false;
+    
+    if (paths && paths.length > 0) {
+      const currentPath = paths[0];
+      const resourceIds = currentPath.resource_ids || [];
+
+      const completedIds = completedProgress?.map((p) => p.resource_id) || [];
+      allResourcesCompleted = resourceIds.every((id: string) => completedIds.includes(id));
+      
+      console.log(`📚 Learning path for ${currentResource.subject}: ${completedIds.length}/${resourceIds.length} completed`);
+    } else {
+      console.log(`📚 No learning path for ${currentResource.subject}`);
+      // No learning path - check if user completed 3+ resources in THIS subject
+      if (completedCount >= 3) {
+        console.log(`🎉 Milestone reached! User completed ${completedCount} resources in ${currentResource.subject}`);
+        allResourcesCompleted = true;
+      } else {
+        console.log(`⏳ Progress in ${currentResource.subject}: ${completedCount}/3 resources completed`);
+      }
+    }
+
+    // If all resources completed FOR THIS SUBJECT, show certificate option
+    if (allResourcesCompleted) {
+      console.log(`✅ All resources completed for ${currentResource.subject}! Showing certificate option.`);
+      return {
+        success: true,
+        nextResource: undefined,
+        message: `Congratulations! You have completed ${currentResource.subject}. Check your certificates!`,
+      };
+    }
+
+    // Only look for next resource if milestone not reached
+    console.log('Looking for next resource...');
 
     // Find the next logical resource (higher difficulty in same subject)
     const difficultyOrder = { Beginner: 1, Medium: 2, Advanced: 3 };

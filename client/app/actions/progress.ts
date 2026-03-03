@@ -54,8 +54,12 @@ export async function markResourceAsComplete(
       };
     }
 
-    // Mark resource as complete
-    const { data: progressData, error: progressError } = await supabase
+    // Use admin client for RLS bypass
+    const { createAdminClient } = await import('@/utils/supabase/admin');
+    const adminClient = createAdminClient();
+
+    // Mark resource as complete using admin client
+    const { data: progressData, error: progressError } = await adminClient
       .from('user_progress')
       .upsert(
         {
@@ -83,8 +87,18 @@ export async function markResourceAsComplete(
 
     console.log('✅ Resource marked as complete');
 
+    // Get resource details to pass subject to certificate generation
+    const { data: resourceData } = await supabase
+      .from('resources')
+      .select('subject')
+      .eq('id', resourceId)
+      .single();
+
     // Check if user completed all resources in their current path
-    const certificateResult = await checkAndGenerateCertificate(user.id);
+    const certificateResult = await checkAndGenerateCertificate(
+      user.id,
+      resourceData?.subject
+    );
 
     return {
       success: true,
@@ -176,52 +190,76 @@ export async function getCompletedResources() {
  * Check if user completed all resources in their path and generate certificate
  */
 async function checkAndGenerateCertificate(
-  userId: string
+  userId: string,
+  subject?: string
 ): Promise<{ generated: boolean; certificateId?: string }> {
   try {
     const supabase = await createClient();
+    
+    // Use admin client for RLS bypass
+    const { createAdminClient } = await import('@/utils/supabase/admin');
+    const adminClient = createAdminClient();
 
-    // Get user's current learning path
-    const { data: paths, error: pathError } = await supabase
+    // Get user's learning path for this subject
+    const pathQuery = supabase
       .from('user_learning_paths')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (pathError || !paths || paths.length === 0) {
-      return { generated: false };
+      .order('created_at', { ascending: false });
+    
+    if (subject) {
+      pathQuery.eq('subject', subject);
     }
+    
+    const { data: paths } = await pathQuery.limit(1);
 
-    const currentPath = paths[0];
-    const resourceIds = currentPath.resource_ids;
-
-    // Get completed resources
-    const { data: completedProgress, error: progressError } = await supabase
+    // Get completed resources for this subject
+    const progressQuery = adminClient
       .from('user_progress')
-      .select('resource_id')
+      .select('resource_id, resources!inner(subject)')
       .eq('user_id', userId)
-      .eq('completed', true)
-      .in('resource_id', resourceIds);
+      .eq('completed', true);
+    
+    if (subject) {
+      progressQuery.eq('resources.subject', subject);
+    }
+    
+    const { data: completedProgress } = await progressQuery;
+    const completedCount = completedProgress?.length || 0;
 
-    if (progressError) {
-      return { generated: false };
+    let shouldGenerateCertificate = false;
+    let certificateSubject = subject || 'General Studies';
+    let goal = 'Learning Milestone';
+    let totalResources = completedCount;
+
+    if (paths && paths.length > 0) {
+      // Has learning path - check if all resources completed
+      const currentPath = paths[0];
+      const resourceIds = currentPath.resource_ids || [];
+      const completedIds = completedProgress?.map((p) => p.resource_id) || [];
+      const allCompleted = resourceIds.every((id: string) => completedIds.includes(id));
+
+      if (allCompleted) {
+        shouldGenerateCertificate = true;
+        certificateSubject = currentPath.subject;
+        goal = currentPath.goal || 'Course Completion';
+        totalResources = resourceIds.length;
+      }
+    } else {
+      // No learning path - generate certificate after 3 resources in this subject
+      if (completedCount >= 3) {
+        shouldGenerateCertificate = true;
+        totalResources = completedCount;
+      }
     }
 
-    const completedIds = completedProgress?.map((p) => p.resource_id) || [];
-
-    // Check if all resources are completed
-    const allCompleted = resourceIds.every((id: string) => completedIds.includes(id));
-
-    if (!allCompleted) {
-      console.log(
-        `Progress: ${completedIds.length}/${resourceIds.length} resources completed`
-      );
+    if (!shouldGenerateCertificate) {
+      console.log(`Progress in ${certificateSubject}: ${completedCount} resources completed`);
       return { generated: false };
     }
 
     // All resources completed! Generate certificate
-    console.log('🎉 All resources completed! Generating certificate...');
+    console.log(`🎉 Generating certificate for ${certificateSubject}...`);
 
     // Get user details
     const { data: userProfile } = await supabase
@@ -234,13 +272,12 @@ async function checkAndGenerateCertificate(
       return { generated: false };
     }
 
-    // Check if certificate already exists for this path
+    // Check if certificate already exists for this subject
     const { data: existingCert } = await supabase
       .from('certificates')
       .select('id')
       .eq('user_id', userId)
-      .eq('subject', currentPath.subject)
-      .eq('goal', currentPath.goal)
+      .eq('subject', certificateSubject)
       .single();
 
     if (existingCert) {
@@ -248,14 +285,14 @@ async function checkAndGenerateCertificate(
       return { generated: false, certificateId: existingCert.id };
     }
 
-    // Generate new certificate
-    const { data: certificate, error: certError } = await supabase
+    // Generate new certificate using admin client
+    const { data: certificate, error: certError } = await adminClient
       .from('certificates')
       .insert({
         user_id: userId,
-        subject: currentPath.subject,
-        goal: currentPath.goal,
-        resources_completed: resourceIds.length,
+        subject: certificateSubject,
+        goal: goal,
+        resources_completed: totalResources,
         issued_date: new Date().toISOString(),
         certificate_data: {
           student_name: userProfile.name,
@@ -347,5 +384,57 @@ export async function getCertificateById(certificateId: string): Promise<Certifi
   } catch (error) {
     console.error('Error in getCertificateById:', error);
     return null;
+  }
+}
+
+// ============================================================================
+// QUIZ RESULTS
+// ============================================================================
+
+/**
+ * Save quiz results to session_logs
+ */
+export async function saveQuizResults(params: {
+  userId: string;
+  resourceId?: string;
+  subject: string;
+  topic: string;
+  score: number;
+  total: number;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Use admin client for RLS bypass
+    const { createAdminClient } = await import('@/utils/supabase/admin');
+    const adminClient = createAdminClient();
+
+    const { error } = await adminClient.from('session_logs').insert({
+      user_id: params.userId,
+      resource_id: params.resourceId || null,
+      action_type: 'completed_module',
+      details: {
+        event_type: 'quiz_completed',
+        score: params.score,
+        total: params.total,
+        subject: params.subject,
+        topic: params.topic,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    if (error) {
+      console.error('Error saving quiz results:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in saveQuizResults:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
   }
 }

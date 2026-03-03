@@ -2,3 +2,4 @@ __pycache__
 test_api.py
 test_xgboost_api.py
 train_model.py
+.vercel

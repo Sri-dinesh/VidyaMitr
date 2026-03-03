@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 /**
  * Two-Stage Recommendation Pipeline
@@ -9,7 +9,7 @@
  * Stage 4: Return Top Results
  */
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from "@/utils/supabase/server";
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -24,7 +24,7 @@ export interface UserProfile {
 export interface IntentData {
   subject: string;
   goal: string;
-  confidence: 'Weak' | 'Average' | 'Strong';
+  confidence: "Weak" | "Average" | "Strong";
 }
 
 export interface Resource {
@@ -45,8 +45,8 @@ export interface EnrichedResource extends Resource {
     predicted_feedback: string;
     confidence_scores: {
       Perfect: number;
-      'Too Hard': number;
-      'Too Slow': number;
+      "Too Hard": number;
+      "Too Slow": number;
     };
   };
   ml_score?: number;
@@ -77,8 +77,8 @@ interface MLPredictionResponse {
   predicted_feedback: string;
   confidence_scores: {
     Perfect: number;
-    'Too Hard': number;
-    'Too Slow': number;
+    "Too Hard": number;
+    "Too Slow": number;
   };
 }
 
@@ -86,7 +86,8 @@ interface MLPredictionResponse {
 // CONFIGURATION
 // ============================================================================
 
-const ML_API_URL = 'http://127.0.0.1:8000/api/predict';
+const ML_API_URL =
+  process.env.ML_API_URL || "http://127.0.0.1:8000/api/predict";
 const ML_API_TIMEOUT = 5000; // 5 seconds
 const MAX_CANDIDATES = 15; // Limit candidates for ML scoring
 const TOP_RESULTS = 5; // Return top 5 recommendations
@@ -100,18 +101,18 @@ const TOP_RESULTS = 5; // Return top 5 recommendations
  */
 function parseDurationToMinutes(duration: string): number {
   if (!duration) return 30;
-  
+
   const durationLower = duration.toLowerCase();
   const numbers = durationLower.match(/\d+/);
-  
+
   if (!numbers) return 30;
-  
+
   const value = parseInt(numbers[0], 10);
-  
-  if (durationLower.includes('hour') || durationLower.includes('hr')) {
+
+  if (durationLower.includes("hour") || durationLower.includes("hr")) {
     return value * 60;
   }
-  
+
   return value;
 }
 
@@ -119,16 +120,16 @@ function parseDurationToMinutes(duration: string): number {
  * Call ML API for a single resource
  */
 async function getPredictionFromML(
-  payload: MLPredictionRequest
+  payload: MLPredictionRequest,
 ): Promise<MLPredictionResponse | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ML_API_TIMEOUT);
 
     const response = await fetch(ML_API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
@@ -145,10 +146,10 @@ async function getPredictionFromML(
     return data;
   } catch (error) {
     if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        console.error('ML API request timeout');
+      if (error.name === "AbortError") {
+        console.error("ML API request timeout");
       } else {
-        console.error('ML API request failed:', error.message);
+        console.error("ML API request failed:", error.message);
       }
     }
     return null;
@@ -161,10 +162,10 @@ async function getPredictionFromML(
 async function scoreResourcesWithML(
   resources: Resource[],
   userProfile: UserProfile,
-  intentData: IntentData
+  intentData: IntentData,
 ): Promise<EnrichedResource[]> {
   const baseline_score = userProfile.baseline_score || 75;
-  const preferred_format = userProfile.preferred_format || 'video';
+  const preferred_format = userProfile.preferred_format || "video";
 
   // Create prediction requests for all resources in parallel
   const predictionPromises = resources.map(async (resource) => {
@@ -188,9 +189,7 @@ async function scoreResourcesWithML(
     const enrichedResource: EnrichedResource = {
       ...resource,
       ml_prediction: prediction || undefined,
-      ml_score: prediction
-        ? prediction.confidence_scores.Perfect
-        : 0,
+      ml_score: prediction ? prediction.confidence_scores.Perfect : 0,
     };
 
     return enrichedResource;
@@ -214,8 +213,8 @@ function sortResourcesByML(resources: EnrichedResource[]): EnrichedResource[] {
     const bScore = b.ml_score || 0;
 
     // "Perfect" predictions come first
-    if (aPrediction === 'Perfect' && bPrediction !== 'Perfect') return -1;
-    if (aPrediction !== 'Perfect' && bPrediction === 'Perfect') return 1;
+    if (aPrediction === "Perfect" && bPrediction !== "Perfect") return -1;
+    if (aPrediction !== "Perfect" && bPrediction === "Perfect") return 1;
 
     // If both are "Perfect" or both are not, sort by confidence score descending
     return bScore - aScore;
@@ -228,10 +227,10 @@ function sortResourcesByML(resources: EnrichedResource[]): EnrichedResource[] {
 function fallbackSort(
   resources: Resource[],
   userProfile: UserProfile,
-  intentData: IntentData
+  intentData: IntentData,
 ): Resource[] {
-  const preferred_format = userProfile.preferred_format || 'video';
-  
+  const preferred_format = userProfile.preferred_format || "video";
+
   return resources.sort((a, b) => {
     // Prioritize resources matching user's preferred format
     const aMatchesFormat = a.format === preferred_format;
@@ -242,16 +241,24 @@ function fallbackSort(
 
     // Map confidence to difficulty preference
     const difficultyOrder: Record<string, number> = {
-      'Beginner': 1,
-      'Medium': 2,
-      'Advanced': 3,
+      Beginner: 1,
+      Medium: 2,
+      Advanced: 3,
     };
-    
-    const targetDifficulty = intentData.confidence === 'Weak' ? 1 :
-                            intentData.confidence === 'Average' ? 2 : 3;
-    
-    const aDiff = Math.abs((difficultyOrder[a.difficulty] || 2) - targetDifficulty);
-    const bDiff = Math.abs((difficultyOrder[b.difficulty] || 2) - targetDifficulty);
+
+    const targetDifficulty =
+      intentData.confidence === "Weak"
+        ? 1
+        : intentData.confidence === "Average"
+          ? 2
+          : 3;
+
+    const aDiff = Math.abs(
+      (difficultyOrder[a.difficulty] || 2) - targetDifficulty,
+    );
+    const bDiff = Math.abs(
+      (difficultyOrder[b.difficulty] || 2) - targetDifficulty,
+    );
 
     return aDiff - bDiff;
   });
@@ -263,7 +270,7 @@ function fallbackSort(
 
 /**
  * Generate personalized learning path using two-stage pipeline
- * 
+ *
  * Stage 1: Candidate Generation (Supabase)
  * Stage 2: AI Scoring (FastAPI ML Model)
  * Stage 3: Ranking & Filtering
@@ -271,20 +278,25 @@ function fallbackSort(
  */
 export async function generatePersonalizedPath(
   userProfile: UserProfile,
-  intentData: IntentData
+  intentData: IntentData,
 ): Promise<RecommendationResult> {
   try {
     // ========================================================================
     // VALIDATION
     // ========================================================================
-    if (!intentData.subject || !intentData.confidence || !userProfile.grade_level) {
+    if (
+      !intentData.subject ||
+      !intentData.confidence ||
+      !userProfile.grade_level
+    ) {
       return {
         success: false,
-        error: 'Missing required data. Please complete your profile and intent assessment.',
+        error:
+          "Missing required data. Please complete your profile and intent assessment.",
       };
     }
 
-    console.log('🎯 Generating personalized path for:', {
+    console.log("🎯 Generating personalized path for:", {
       grade: userProfile.grade_level,
       subject: intentData.subject,
       confidence: intentData.confidence,
@@ -294,38 +306,38 @@ export async function generatePersonalizedPath(
     // ========================================================================
     // STAGE 1: CANDIDATE GENERATION (Supabase Query)
     // ========================================================================
-    console.log('📊 Stage 1: Fetching candidates from Supabase...');
-    
+    console.log("📊 Stage 1: Fetching candidates from Supabase...");
+
     const supabase = await createClient();
 
     let query = supabase
-      .from('resources')
-      .select('*')
-      .eq('target_grade', userProfile.grade_level)
-      .eq('subject', intentData.subject)
+      .from("resources")
+      .select("*")
+      .eq("target_grade", userProfile.grade_level)
+      .eq("subject", intentData.subject)
       .limit(MAX_CANDIDATES);
 
     // Adaptive difficulty filtering based on confidence level
-    if (intentData.confidence === 'Weak') {
-      query = query.in('difficulty', ['Beginner', 'Medium']);
-    } else if (intentData.confidence === 'Average') {
-      query = query.in('difficulty', ['Beginner', 'Medium', 'Advanced']);
-    } else if (intentData.confidence === 'Strong') {
-      query = query.in('difficulty', ['Medium', 'Advanced']);
+    if (intentData.confidence === "Weak") {
+      query = query.in("difficulty", ["Beginner", "Medium"]);
+    } else if (intentData.confidence === "Average") {
+      query = query.in("difficulty", ["Beginner", "Medium", "Advanced"]);
+    } else if (intentData.confidence === "Strong") {
+      query = query.in("difficulty", ["Medium", "Advanced"]);
     }
 
     const { data: resources, error } = await query;
 
     if (error) {
-      console.error('❌ Database query error:', error);
+      console.error("❌ Database query error:", error);
       return {
         success: false,
-        error: 'Failed to fetch learning resources. Please try again.',
+        error: "Failed to fetch learning resources. Please try again.",
       };
     }
 
     if (!resources || resources.length === 0) {
-      console.log('⚠️ No resources found for criteria');
+      console.log("⚠️ No resources found for criteria");
       return {
         success: true,
         resources: [],
@@ -342,41 +354,49 @@ export async function generatePersonalizedPath(
     let mlEnabled = false;
 
     try {
-      console.log('🤖 Stage 2: Scoring resources with ML API...');
-      enrichedResources = await scoreResourcesWithML(resources, userProfile, intentData);
-      
+      console.log("🤖 Stage 2: Scoring resources with ML API...");
+      enrichedResources = await scoreResourcesWithML(
+        resources,
+        userProfile,
+        intentData,
+      );
+
       // Check if at least one resource got ML predictions
-      const mlSuccessCount = enrichedResources.filter(r => r.ml_prediction).length;
+      const mlSuccessCount = enrichedResources.filter(
+        (r) => r.ml_prediction,
+      ).length;
       mlEnabled = mlSuccessCount > 0;
 
       if (mlEnabled) {
-        console.log(`✅ ML scoring successful: ${mlSuccessCount}/${resources.length} resources scored`);
+        console.log(
+          `✅ ML scoring successful: ${mlSuccessCount}/${resources.length} resources scored`,
+        );
       } else {
-        console.log('⚠️ ML API unavailable, using fallback sorting');
+        console.log("⚠️ ML API unavailable, using fallback sorting");
       }
     } catch (mlError) {
-      console.error('❌ ML scoring failed:', mlError);
-      console.log('⚠️ Falling back to rule-based sorting');
+      console.error("❌ ML scoring failed:", mlError);
+      console.log("⚠️ Falling back to rule-based sorting");
       mlEnabled = false;
-      enrichedResources = resources.map(r => ({ ...r }));
+      enrichedResources = resources.map((r) => ({ ...r }));
     }
 
     // ========================================================================
     // STAGE 3: RANKING & FILTERING
     // ========================================================================
-    console.log('🔄 Stage 3: Ranking and filtering...');
-    
+    console.log("🔄 Stage 3: Ranking and filtering...");
+
     let rankedResources: EnrichedResource[];
 
     if (mlEnabled) {
       // Sort by ML predictions
       rankedResources = sortResourcesByML(enrichedResources);
-      
+
       // Optional: Filter out "Too Hard" predictions for weak students
-      if (intentData.confidence === 'Weak') {
+      if (intentData.confidence === "Weak") {
         const beforeFilter = rankedResources.length;
         rankedResources = rankedResources.filter(
-          r => r.ml_prediction?.predicted_feedback !== 'Too Hard'
+          (r) => r.ml_prediction?.predicted_feedback !== "Too Hard",
         );
         const filtered = beforeFilter - rankedResources.length;
         if (filtered > 0) {
@@ -392,25 +412,27 @@ export async function generatePersonalizedPath(
     // STAGE 4: RETURN TOP RESULTS
     // ========================================================================
     const topResources = rankedResources.slice(0, TOP_RESULTS);
-    
+
     console.log(`✅ Returning top ${topResources.length} resources`);
-    console.log('   Top 3 predictions:', topResources.slice(0, 3).map(r => ({
-      title: r.title.substring(0, 50) + '...',
-      prediction: r.ml_prediction?.predicted_feedback || 'N/A',
-      score: r.ml_score?.toFixed(2) || 'N/A',
-    })));
+    console.log(
+      "   Top 3 predictions:",
+      topResources.slice(0, 3).map((r) => ({
+        title: r.title.substring(0, 50) + "...",
+        prediction: r.ml_prediction?.predicted_feedback || "N/A",
+        score: r.ml_score?.toFixed(2) || "N/A",
+      })),
+    );
 
     return {
       success: true,
       resources: topResources,
       mlEnabled,
     };
-
   } catch (error) {
-    console.error('❌ Fatal error in recommendation pipeline:', error);
+    console.error("❌ Fatal error in recommendation pipeline:", error);
     return {
       success: false,
-      error: 'An unexpected error occurred. Please try again.',
+      error: "An unexpected error occurred. Please try again.",
     };
   }
 }
